@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tic-Tac-Toe Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Arial', sans-serif;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 10px;
+            max-width: 300px;
+            margin: 0 auto;
+        }
+        .cell {
+            width: 100px;
+            height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            font-weight: bold;
+            background: white;
+            color: #333;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .cell:hover {
+            background: #f0f0f0;
+            transform: scale(1.05);
+        }
+        .cell.x {
+            color: #e74c3c;
+        }
+        .cell.o {
+            color: #3498db;
+        }
+        .scores {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+        }
+        .score {
+            font-size: 1.2rem;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            max-width: 300px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center">
+    <h1 class="text-4xl font-bold text-white mb-4">Tic-Tac-Toe</h1>
+    <div class="container bg-white p-6 rounded-lg shadow-lg max-w-md">
+        <div class="mb-4">
+            <label class="mr-4">
+                <input type="radio" name="mode" value="two-player" checked>
+                Two Players
+            </label>
+            <label>
+                <input type="radio" name="mode" value="one-player">
+                vs Computer
+            </label>
+        </div>
+        <div class="scores">
+            <div class="score">X Wins: <span id="x-score">0</span></div>
+            <div class="score">O Wins: <span id="o-score">0</span></div>
+            <div class="score">Draws: <span id="draw-score">0</span></div>
+        </div>
+        <div id="grid" class="grid">
+            <div class="cell" data-index="0"></div>
+            <div class="cell" data-index="1"></div>
+            <div class="cell" data-index="2"></div>
+            <div class="cell" data-index="3"></div>
+            <div class="cell" data-index="4"></div>
+            <div class="cell" data-index="5"></div>
+            <div class="cell" data-index="6"></div>
+            <div class="cell" data-index="7"></div>
+            <div class="cell" data-index="8"></div>
+        </div>
+        <button id="reset" class="mt-4 w-full py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Reset Game</button>
+    </div>
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <h2 id="message" class="text-2xl mb-4">Result</h2>
+            <button id="close-modal" class="py-2 px-4 bg-green-500 text-white rounded hover:bg-green-600">OK</button>
+        </div>
+    </div>
+    <script>
+        const grid = document.getElementById('grid');
+        const cells = document.querySelectorAll('.cell');
+        const resetBtn = document.getElementById('reset');
+        const modal = document.getElementById('modal');
+        const message = document.getElementById('message');
+        const closeModal = document.getElementById('close-modal');
+        let board = Array(9).fill('');
+        let currentPlayer = 'X';
+        let gameActive = true;
+        let xScore = 0;
+        let oScore = 0;
+        let drawScore = 0;
+        const xScoreEl = document.getElementById('x-score');
+        const oScoreEl = document.getElementById('o-score');
+        const drawScoreEl = document.getElementById('draw-score');
+        let mode = 'two-player'; // Default to two-player
+
+        // Winning combinations
+        const winCombos = [
+            [0,1,2], [3,4,5], [6,7,8],
+            [0,3,6], [1,4,7], [2,5,8],
+            [0,4,8], [2,4,6]
+        ];
+
+        function handleCellClick(e) {
+            const index = parseInt(e.target.getAttribute('data-index'));
+            if (board[index] || !gameActive) return;
+
+            board[index] = currentPlayer;
+            e.target.textContent = currentPlayer;
+            e.target.classList.add(currentPlayer.toLowerCase());
+
+            if (checkWinner()) {
+                gameActive = false;
+                message.textContent = `${currentPlayer} Wins!`;
+                if (currentPlayer === 'X') xScore++;
+                else oScore++;
+                updateScores();
+                modal.style.display = 'flex';
+            } else if (board.every(cell => cell)) {
+                gameActive = false;
+                message.textContent = 'Draw!';
+                drawScore++;
+                updateScores();
+                modal.style.display = 'flex';
+            } else {
+                currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+                if (mode === 'one-player' && currentPlayer === 'O' && gameActive) {
+                    setTimeout(computerMove, 500);
+                }
+            }
+        }
+
+        function computerMove() {
+            let available = board.map((val, idx) => val === '' ? idx : null).filter(v => v !== null);
+            const randomIdx = available[Math.floor(Math.random() * available.length)];
+            board[randomIdx] = 'O';
+            cells[randomIdx].textContent = 'O';
+            cells[randomIdx].classList.add('o');
+            if (checkWinner()) {
+                gameActive = false;
+                message.textContent = 'O Wins!';
+                oScore++;
+                updateScores();
+                modal.style.display = 'flex';
+            } else if (board.every(cell => cell)) {
+                gameActive = false;
+                message.textContent = 'Draw!';
+                drawScore++;
+                updateScores();
+                modal.style.display = 'flex';
+            } else {
+                currentPlayer = 'X';
+            }
+        }
+
+        function checkWinner() {
+            return winCombos.some(combo => {
+                return combo.every(index => board[index] === currentPlayer);
+            });
+        }
+
+        function resetGame() {
+            board.fill('');
+            cells.forEach(cell => {
+                cell.textContent = '';
+                cell.classList.remove('x', 'o');
+            });
+            currentPlayer = 'X';
+            gameActive = true;
+            modal.style.display = 'none';
+            // Check mode for computer
+            const modeRadios = document.querySelectorAll('input[name="mode"]');
+            modeRadios.forEach(radio => {
+                radio.addEventListener('change', e => mode = e.target.value);
+            });
+            if (mode === 'one-player' && currentPlayer === 'O') {
+                setTimeout(computerMove, 500);
+            }
+        }
+
+        function updateScores() {
+            xScoreEl.textContent = xScore;
+            oScoreEl.textContent = oScore;
+            drawScoreEl.textContent = drawScore;
+        }
+
+        cells.forEach(cell => cell.addEventListener('click', handleCellClick));
+        resetBtn.addEventListener('click', resetGame);
+        closeModal.addEventListener('click', () => modal.style.display = 'none');
+
+        // Initial mode check
+        document.querySelectorAll('input[name="mode"]').forEach(radio => {
+            radio.addEventListener('change', e => mode = e.target.value);
+        });
+    </script>
+</body>
+</html>
+</content>
+</create_file>
